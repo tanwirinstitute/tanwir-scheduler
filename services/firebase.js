@@ -36,6 +36,52 @@ function initializeFirebase() {
 }
 
 /**
+ * Save Badr Program data to the programs collection
+ * @param {Array} programRecords - Badr Program records
+ */
+async function saveProgramsToFirestore(programRecords) {
+  if (!programRecords || programRecords.length === 0) {
+    logger.info("No program records to save");
+    return 0;
+  }
+
+  const db = admin.firestore();
+  const batch = db.batch();
+  let successCount = 0;
+
+  for (const program of programRecords) {
+    try {
+      const programId = program.programId;
+      const docRef = db.collection("programs").doc(programId);
+
+      // Check if program already exists
+      const existingDoc = await docRef.get();
+      
+      if (existingDoc.exists) {
+        logger.info(`Program ${programId} already exists, skipping`);
+        continue;
+      }
+
+      // Add new program
+      batch.set(docRef, {
+        ...program,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastSynced: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      successCount++;
+      logger.info(`Added new program ${programId}`);
+    } catch (error) {
+      logger.error(`Error processing program ${program.programId}:`, error);
+    }
+  }
+
+  await batch.commit();
+  logger.info(`Saved ${successCount} program records to Firestore`);
+  return successCount;
+}
+
+/**
  * Save processed Squarespace orders to Firestore
  * @param {Array} studentRecords - Already formatted and grouped student records
  */
@@ -47,6 +93,28 @@ export async function saveToFirestore(studentRecords) {
     }
 
     initializeFirebase();
+    
+    // Separate Badr Program records from student course records
+    const badrProgramRecords = studentRecords.filter(
+      record => record.programType === "BadrProgram"
+    );
+    const courseRecords = studentRecords.filter(
+      record => record.courseType === "AssociatesProgram" || record.courseType === "PropheticGuidance"
+    );
+    
+    logger.info(`Found ${badrProgramRecords.length} Badr Program records and ${courseRecords.length} course records`);
+    
+    // Save Badr Program records to programs collection
+    if (badrProgramRecords.length > 0) {
+      await saveProgramsToFirestore(badrProgramRecords);
+    }
+    
+    // Process course records for authorizedUsers collection
+    if (courseRecords.length === 0) {
+      logger.info("No course records to save to authorizedUsers");
+      return;
+    }
+    
     const db = admin.firestore();
     const batch = db.batch();
     
@@ -54,7 +122,7 @@ export async function saveToFirestore(studentRecords) {
     const studentsByEmail = {};
     
     // First, group all records by email
-    studentRecords.forEach(record => {
+    courseRecords.forEach(record => {
       // Skip records without student info or email
       if (!record.studentInfo || !record.studentInfo.email) {
         logger.warn(`Skipping record with missing student email: ${JSON.stringify(record)}`);

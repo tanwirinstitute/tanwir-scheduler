@@ -13,6 +13,11 @@ import {
   isPropheticGuidance,
 } from "./PropheticGuidance.js";
 
+import {
+  createBadrProgramModel,
+  isBadrProgram,
+} from "./BadrProgram.js";
+
 import { logger } from "../utils/logger.js";
 
 /**
@@ -57,6 +62,9 @@ export function mapCourseToModel(order) {
       } else if (isPropheticGuidance(courseName)) {
         logger.info(`Mapping course "${courseName}" to Prophetic Guidance model`);
         mappedCourses = createPropheticGuidanceModel(courseOrder); // Returns an array
+      } else if (isBadrProgram(courseName)) {
+        logger.info(`Mapping course "${courseName}" to Badr Program model`);
+        mappedCourses = createBadrProgramModel(courseOrder); // Returns an array
       } else {
         logger.info(`Course "${courseName}" does not match any specific model, using generic format`);
         // Handle generic course (if needed)
