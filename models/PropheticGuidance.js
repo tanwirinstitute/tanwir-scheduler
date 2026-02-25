@@ -79,12 +79,16 @@ function createSingleStudentModel(order, item) {
   const plan = getVariantOption(item.variantOptions, "Plan");
   const section = getVariantOption(item.variantOptions, "Section");
 
+  // Create courseRef based on courseName and section
+  const courseRef = `courses/Prophetic Guidance ${section}`;
+
   return {
     courseId: `${order.id}-${item.id}`,
     orderNumber: order.orderNumber,
     createdOn: order.createdOn,
     courseName: item.productName,
     courseType: "PropheticGuidance",
+    courseRef,
 
     studentInfo: {
       firstName,

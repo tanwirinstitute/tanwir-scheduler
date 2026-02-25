@@ -172,7 +172,30 @@ export async function saveToFirestore(studentRecords) {
           // Filter out courses that already exist
           const newCourses = coursesForUser.filter(course => {
             const courseKey = course.courseId || course.orderNumber;
-            return !existingCourseMap[courseKey];
+            
+            // First check by courseId/orderNumber (existing logic)
+            if (existingCourseMap[courseKey]) {
+              return false;
+            }
+            
+            // Enhanced check for payment plans: check by course name, section, and type
+            return !existingCourses.some(existingCourse => {
+              // For Associates Program
+              if (course.courseType === 'AssociatesProgram' && existingCourse.courseType === 'AssociatesProgram') {
+                return course.courseName === existingCourse.courseName && 
+                       course.placementInfo?.section === existingCourse.placementInfo?.section;
+              }
+              
+              // For Prophetic Guidance
+              if (course.courseType === 'PropheticGuidance' && existingCourse.courseType === 'PropheticGuidance') {
+                return course.courseName === existingCourse.courseName && 
+                       course.guidanceDetails?.section === existingCourse.guidanceDetails?.section &&
+                       course.guidanceDetails?.plan === existingCourse.guidanceDetails?.plan;
+              }
+              
+              // Default to false if course types don't match
+              return false;
+            });
           });
           
           if (newCourses.length > 0) {
@@ -197,6 +220,12 @@ export async function saveToFirestore(studentRecords) {
           const firstCourse = coursesForUser[0];
           const { studentInfo } = firstCourse;
           
+          // Extract password for auth but don't store it in Firestore
+          const { password, ...studentInfoWithoutPassword } = studentInfo;
+          
+          // Normalize email to lowercase for consistency
+          studentInfoWithoutPassword.email = email;
+          
           // Extract course data without studentInfo to avoid duplication
           const courses = coursesForUser.map(course => {
             const { studentInfo: _, ...courseOnly } = course;
@@ -211,7 +240,7 @@ export async function saveToFirestore(studentRecords) {
               logger.info(`Creating Firebase Authentication user for ${email}`);
               await admin.auth().createUser({
                 email: email,
-                password: studentInfo.password || uuidv4().substring(0, 8),
+                password: password || uuidv4().substring(0, 8),
                 displayName: `${studentInfo.firstName} ${studentInfo.lastName}`.trim(),
                 disabled: false
               });
@@ -226,7 +255,7 @@ export async function saveToFirestore(studentRecords) {
             }
             
             batch.set(docRef, {
-              studentInfo,
+              studentInfo: studentInfoWithoutPassword,
               courses,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
               lastSynced: admin.firestore.FieldValue.serverTimestamp(),
@@ -235,9 +264,9 @@ export async function saveToFirestore(studentRecords) {
             successCount += courses.length;
             logger.info(`Created new user ${email} with ${courses.length} courses`);
             
-            // Send welcome email to new student
+            // Send welcome email to new student with complete studentInfo (including password)
             const newStudent = {
-              studentInfo,
+              studentInfo, // Keep original studentInfo with password for email
               courses
             };
             sendWelcomeEmail(newStudent)

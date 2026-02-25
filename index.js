@@ -31,12 +31,12 @@ app.post("/trigger-sync", async (req, res) => {
 });
 
 // The main scheduled task that will run according to the cron schedule
-async function runScheduledTask() {
+async function runScheduledTask(timeConfig = 6) {
   try {
     logger.info("Starting scheduled task to process Squarespace orders");
 
     // Step 1: Extract data from Squarespace
-    const orders = await fetchSquarespaceOrders();
+    const orders = await fetchSquarespaceOrders(timeConfig);
     logger.info(`Fetched ${orders.length} orders from Squarespace`);
 
     // Step 2: Format the data

@@ -55,6 +55,9 @@ function createSingleStudentModel(order, item) {
   const plan = getVariantOption(item.variantOptions, "Plan");
   const section = getVariantOption(item.variantOptions, "Section");
 
+  // Create courseRef based on courseName and section
+  const courseRef = `courses/Associates Program ${section}`;
+
   // Extract student information from customizations
   const fullName = customizations["Name"] || "";
   const nameParts = fullName.split(" ");
@@ -80,6 +83,7 @@ function createSingleStudentModel(order, item) {
     createdOn: order.createdOn,
     courseName: item.productName,
     courseType: "AssociatesProgram",
+    courseRef,
 
     studentInfo: {
       firstName,

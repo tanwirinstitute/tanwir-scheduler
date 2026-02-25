@@ -35,14 +35,33 @@ async function fetchAllOrders(modifiedAfter, modifiedBefore) {
   return allOrders;
 }
 
-export async function fetchSquarespaceOrders() {
+export async function fetchSquarespaceOrders(timeConfig = 6) {
   try {
     logger.info("Fetching orders from Squarespace");
 
-    const now = new Date();
-    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
-    const modifiedAfter = tenMinutesAgo.toISOString();
-    const modifiedBefore = now.toISOString();
+    let modifiedAfter, modifiedBefore;
+    
+    // Handle different time config formats
+    if (typeof timeConfig === 'number') {
+      // Backward compatible: lookback minutes
+      const now = new Date();
+      const lookbackTime = new Date(now.getTime() - timeConfig * 60 * 1000);
+      modifiedAfter = lookbackTime.toISOString();
+      modifiedBefore = now.toISOString();
+      logger.info(`Fetching orders modified between ${modifiedAfter} and ${modifiedBefore} (${timeConfig} minutes)`);
+    } else if (timeConfig.type === 'lookback') {
+      // Lookback minutes from config object
+      const now = new Date();
+      const lookbackTime = new Date(now.getTime() - timeConfig.minutes * 60 * 1000);
+      modifiedAfter = lookbackTime.toISOString();
+      modifiedBefore = now.toISOString();
+      logger.info(`Fetching orders modified between ${modifiedAfter} and ${modifiedBefore} (${timeConfig.minutes} minutes)`);
+    } else if (timeConfig.type === 'range') {
+      // Specific time range
+      modifiedAfter = new Date(timeConfig.start).toISOString();
+      modifiedBefore = new Date(timeConfig.end).toISOString();
+      logger.info(`Fetching orders modified between ${modifiedAfter} and ${modifiedBefore} (custom range)`);
+    }
 
     const allOrders = await fetchAllOrders(modifiedAfter, modifiedBefore);
 
