@@ -15,7 +15,7 @@ export function isAssociatesProgram(courseName) {
   return (
     name.includes("associates") ||
     name.includes("associate's") ||
-    name.includes("program")
+    name.includes("associate")
   );
 }
 
