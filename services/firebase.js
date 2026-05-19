@@ -94,19 +94,19 @@ export async function saveToFirestore(studentRecords) {
 
     initializeFirebase();
     
-    // Separate Badr Program records from student course records
-    const badrProgramRecords = studentRecords.filter(
-      record => record.programType === "BadrProgram"
+    // Separate program records (programs collection) from student course records (authorizedUsers)
+    const programRecords = studentRecords.filter(
+      record => record.programType === "BadrProgram" || record.programType === "AnnualArafatProgram"
     );
     const courseRecords = studentRecords.filter(
       record => record.courseType === "AssociatesProgram" || record.courseType === "PropheticGuidance"
     );
-    
-    logger.info(`Found ${badrProgramRecords.length} Badr Program records and ${courseRecords.length} course records`);
-    
-    // Save Badr Program records to programs collection
-    if (badrProgramRecords.length > 0) {
-      await saveProgramsToFirestore(badrProgramRecords);
+
+    logger.info(`Found ${programRecords.length} program records and ${courseRecords.length} course records`);
+
+    // Save program records to programs collection
+    if (programRecords.length > 0) {
+      await saveProgramsToFirestore(programRecords);
     }
     
     // Process course records for authorizedUsers collection

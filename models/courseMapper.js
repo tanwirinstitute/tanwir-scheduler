@@ -18,6 +18,11 @@ import {
   isBadrProgram,
 } from "./BadrProgram.js";
 
+import {
+  createAnnualArafatProgramModel,
+  isAnnualArafatProgram,
+} from "./AnnualArafatProgram.js";
+
 import { logger } from "../utils/logger.js";
 
 /**
@@ -65,6 +70,9 @@ export function mapCourseToModel(order) {
       } else if (isBadrProgram(courseName)) {
         logger.info(`Mapping course "${courseName}" to Badr Program model`);
         mappedCourses = createBadrProgramModel(courseOrder); // Returns an array
+      } else if (isAnnualArafatProgram(courseName)) {
+        logger.info(`Mapping course "${courseName}" to Annual Arafat Program model`);
+        mappedCourses = createAnnualArafatProgramModel(courseOrder); // Returns an array
       } else {
         logger.info(`Course "${courseName}" does not match any specific model, using generic format`);
         // Handle generic course (if needed)
