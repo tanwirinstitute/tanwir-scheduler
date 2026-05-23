@@ -32,6 +32,17 @@ function getCustomization(customizations, label) {
   return customization ? customization.value : "";
 }
 
+// Handles free-text entries like "Total of 4 (self included)", "n/a", "2 adults 3 children", ""
+function parseAttendeeCount(raw) {
+  if (!raw) return 1;
+  const s = raw.trim().toLowerCase();
+  if (!s || s === "n/a" || s === "na") return 1;
+  const direct = parseInt(s, 10);
+  if (!isNaN(direct)) return direct;
+  const match = s.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 1;
+}
+
 /**
  * Creates a structured Annual Arafat Program model for a single line item
  * @param {Object} order - Full Squarespace order object
@@ -43,9 +54,13 @@ function createSingleProgramModel(order, item) {
   const nameParts = fullName.split(" ");
   const firstName = nameParts[0] || "";
   const lastName = nameParts.slice(1).join(" ") || "";
-  const email = getCustomization(item.customizations, "Email")?.trim();
+  // New form dropped the Email field — fall back to the order's customer email
+  const email = (getCustomization(item.customizations, "Email") || order.customerEmail || "").trim();
   const phone = getCustomization(item.customizations, "Phone")?.replace(/\s+/g, "") || "";
-  const attendeeCount = getCustomization(item.customizations, "How Many Attending?") || "1";
+  // New form renamed label to "How Many Are Attending?"
+  const attendeeRaw =
+    getCustomization(item.customizations, "How Many Are Attending?") ||
+    getCustomization(item.customizations, "How Many Attending?");
 
   const customizations = {};
   item.customizations.forEach(c => {
@@ -65,7 +80,7 @@ function createSingleProgramModel(order, item) {
       lastName,
       email,
       phone,
-      attendeeCount: parseInt(attendeeCount) || 1,
+      attendeeCount: parseAttendeeCount(attendeeRaw),
     },
 
     programDetails: {
