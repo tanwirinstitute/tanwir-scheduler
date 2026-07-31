@@ -1,115 +1,89 @@
 # Tanwir Scheduler
 
-A Node.js scheduler application that fetches student orders from Squarespace, processes the data, and stores it in Firebase Firestore. This application is designed to be deployed on Render.com.
+TypeScript/Express service on Render.com that runs Tanwir Institute's scheduled backend jobs against Firestore.
 
-## Features
+## Status
 
-- Scheduled data extraction from Squarespace API
-- Data processing and formatting
-- Storage in Firebase Firestore
-- RESTful API endpoints for manual triggering
-- Health check endpoint
-- Configurable via environment variables
-- Designed for deployment on Render.com
+| Pipeline | State | Trigger |
+|---|---|---|
+| Zakat scholarship consent | Active | `runScheduledTask` (cron / `POST /trigger-sync`) |
+| Squarespace course sync | Disabled, mid-rewrite | — (models/services retained as reference) |
 
-## Prerequisites
+**Zakat scholarship consent**: finds `scholarships` documents that are unapproved (no `status` field) and have `zakat == "yes"`, emails each applicant a one-time consent link via the Tanwir mail API, and records `consented` + `consentedAt` when they click it.
 
-- Node.js 18.x or higher
-- Squarespace API key with access to orders
-- Firebase project with Firestore database
-- Firebase service account credentials
+## Requirements
+
+- Node.js ≥ 18
+- Firebase project with Firestore + a service account
+- Tanwir mail API bearer token (`ZAKAT_MAIL_API_TOKEN`)
 
 ## Setup
 
-1. Clone this repository:
-
-   ```
-   git clone https://github.com/yourusername/tanwir-scheduler.git
-   cd tanwir-scheduler
-   ```
-
-2. Install dependencies:
-
-   ```
-   npm install
-   ```
-
-3. Create a `.env` file based on `.env.example`:
-
-   ```
-   cp .env.example .env
-   ```
-
-4. Configure your environment variables in the `.env` file:
-   - Add your Squarespace API key
-   - Configure Firebase credentials (see below)
-   - Adjust the cron schedule if needed
-
-## Firebase Configuration
-
-You have three options to configure Firebase:
-
-1. **Base64-encoded service account (recommended for Render.com)**:
-
-   ```
-   cat path/to/serviceAccountKey.json | base64 > service-account-base64.txt
-   ```
-
-   Then copy the contents of `service-account-base64.txt` to the `FIREBASE_SERVICE_ACCOUNT_BASE64` environment variable.
-
-2. **Path to service account file**:
-   Set `GOOGLE_APPLICATION_CREDENTIALS` to the path of your service account JSON file.
-
-3. **JSON service account string**:
-   Copy the entire JSON content of your service account file to the `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable.
-
-## Running Locally
-
-```
-npm run dev
+```bash
+npm install
+cp .env.example .env   # fill in the values below
+npm run dev             # runs index.ts directly via tsx, no build step
 ```
 
-The server will start on the port specified in your `.env` file (default: 3000).
+## Scripts
 
-## Deployment to Render.com
+| Command | Does |
+|---|---|
+| `npm run dev` | Run `index.ts` directly with `tsx watch` (hot reload, no build) |
+| `npm run build` | Type-check and compile `**/*.ts` → `dist/` |
+| `npm start` | Build, then run `dist/index.js` (used by Render) |
+| `npm run sync` | Build, then run `dist/scripts/runSync.js` once and exit (used by the cron job) |
+| `npm run lint` | ESLint |
 
-1. Create a new Web Service on Render.com
-2. Connect your GitHub repository
-3. Configure the service:
-   - **Environment**: Node
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Environment Variables**: Add all variables from your `.env` file
+## Environment variables
 
-## API Endpoints
+| Variable | Purpose | Default |
+|---|---|---|
+| `PORT` | HTTP port | `3000` |
+| `LOG_LEVEL` | `ERROR` \| `WARN` \| `INFO` \| `DEBUG` | `INFO` |
+| `FIREBASE_SERVICE_ACCOUNT_BASE64` | Base64-encoded service account JSON (preferred on Render) | — |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Raw service account JSON (local dev alternative) | — |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account file (local dev alternative) | — |
+| `SCHOLARSHIPS_COLLECTION` | Firestore collection scanned for zakat consent | `scholarships` |
+| `ZAKAT_MAIL_API_URL` | Base URL of the mail API | `https://email.tanwir.institute` |
+| `ZAKAT_MAIL_API_TOKEN` | Bearer token for the mail API | — (required) |
+| `APP_BASE_URL` | Public URL of this service; consent links are `<APP_BASE_URL>/consent/<docId>` | — (required) |
+| `CRON_SCHEDULE` | Reference schedule for the external cron trigger | `0 2 * * *` |
+| `SQUARESPACE_API_KEY` / `SQUARESPACE_API_URL` | Only used by the disabled course-sync pipeline | — |
+| `FIRESTORE_COLLECTION` | Only used by the disabled course-sync pipeline | `authorizedUsers` |
 
-- `GET /`: Health check endpoint
-- `POST /trigger-sync`: Manually trigger the synchronization process
+Set exactly one of the three Firebase credential options.
 
-## Customization
+## API
 
-### Adjusting the Schedule
+| Endpoint | Description |
+|---|---|
+| `GET /` | Health check |
+| `POST /trigger-sync` | Manually run the scheduled task |
+| `GET /consent/:docId` | Consent link target from the applicant email; idempotent |
 
-The default schedule is set to run every day at 2 AM. You can modify this by changing the `CRON_SCHEDULE` environment variable. Use [crontab.guru](https://crontab.guru/) to help create your schedule.
+## Deployment (Render)
 
-### Modifying Data Processing
+- **Build Command**: `npm install`
+- **Start Command**: `npm start` (compiles via a `prestart` hook, then runs `dist/index.js`)
+- A separate Render Cron Job runs `npm run sync` on `CRON_SCHEDULE` to trigger the pipeline outside of HTTP.
+- Add every variable from `.env.example` to the Render service's environment.
 
-If you need to adjust how the data is processed or what fields are extracted:
+## Project structure
 
-1. Edit `services/dataProcessor.js` to modify the data transformation logic
-2. Update the student information extraction in the `extractStudentInfo` function
-3. Update the course information extraction in the `extractCourseInfo` function
-
-## Logging
-
-The application uses a simple logging utility with configurable log levels:
-
-- ERROR: Only errors
-- WARN: Errors and warnings
-- INFO: Errors, warnings, and info messages (default)
-- DEBUG: All messages including debug information
-
-Set the `LOG_LEVEL` environment variable to control the verbosity.
+```
+index.ts                 Express app, health check, /consent route, runScheduledTask
+scripts/runSync.ts        Cron entry point — calls runScheduledTask once and exits
+services/
+  scholarships.ts          Firestore queries/writes for the consent pipeline
+  zakatMailer.ts            Mail API client
+  firebase.ts                Firebase Admin init, shared getDb(), legacy saveToFirestore
+  squarespace.ts            Legacy Squarespace client (disabled pipeline)
+  dataProcessor.ts          Legacy order → course model processing (disabled pipeline)
+models/                   Legacy course-model mappers (disabled pipeline)
+types/                    Shared TypeScript interfaces
+utils/logger.ts           Leveled console logger
+```
 
 ## License
 
