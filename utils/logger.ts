@@ -2,8 +2,9 @@
  * Simple logger utility for the scheduler application
  */
 
-// Define log levels
-const LOG_LEVELS = {
+type LogLevelName = "ERROR" | "WARN" | "INFO" | "DEBUG";
+
+const LOG_LEVELS: Record<LogLevelName, number> = {
   ERROR: 0,
   WARN: 1,
   INFO: 2,
@@ -11,18 +12,14 @@ const LOG_LEVELS = {
 };
 
 // Get the current log level from environment or default to INFO
-const currentLogLevel = process.env.LOG_LEVEL
-  ? LOG_LEVELS[process.env.LOG_LEVEL.toUpperCase()]
+const currentLogLevel: number = process.env.LOG_LEVEL
+  ? LOG_LEVELS[process.env.LOG_LEVEL.toUpperCase() as LogLevelName]
   : LOG_LEVELS.INFO;
 
 /**
  * Format the log message with timestamp and level
- * @param {string} level - Log level
- * @param {string} message - Log message
- * @param {Object} data - Optional data to log
- * @returns {string} - Formatted log message
  */
-function formatLog(level, message, data) {
+function formatLog(level: LogLevelName, message: string, data?: unknown): string {
   const timestamp = new Date().toISOString();
   let logMessage = `${timestamp} [${level}] ${message}`;
 
@@ -43,12 +40,8 @@ function formatLog(level, message, data) {
 
 /**
  * Log a message if the current log level allows it
- * @param {number} level - Numeric log level
- * @param {string} levelName - String log level name
- * @param {string} message - Log message
- * @param {Object} data - Optional data to log
  */
-function log(level, levelName, message, data) {
+function log(level: number, levelName: LogLevelName, message: string, data?: unknown): void {
   if (level <= currentLogLevel) {
     const formattedMessage = formatLog(levelName, message, data);
 
@@ -67,8 +60,8 @@ function log(level, levelName, message, data) {
 
 // Export the logger object with methods for each log level
 export const logger = {
-  error: (message, data) => log(LOG_LEVELS.ERROR, "ERROR", message, data),
-  warn: (message, data) => log(LOG_LEVELS.WARN, "WARN", message, data),
-  info: (message, data) => log(LOG_LEVELS.INFO, "INFO", message, data),
-  debug: (message, data) => log(LOG_LEVELS.DEBUG, "DEBUG", message, data),
+  error: (message: string, data?: unknown) => log(LOG_LEVELS.ERROR, "ERROR", message, data),
+  warn: (message: string, data?: unknown) => log(LOG_LEVELS.WARN, "WARN", message, data),
+  info: (message: string, data?: unknown) => log(LOG_LEVELS.INFO, "INFO", message, data),
+  debug: (message: string, data?: unknown) => log(LOG_LEVELS.DEBUG, "DEBUG", message, data),
 };

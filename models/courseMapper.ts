@@ -14,13 +14,13 @@ import {
 } from "./PropheticGuidance.js";
 
 import { logger } from "../utils/logger.js";
+import type { SquarespaceOrder } from "../types/squarespace.js";
+import type { CourseModel } from "../types/course.js";
 
 /**
  * Maps a single Squarespace order to its appropriate course model
- * @param {Object} order - Full Squarespace order object
- * @returns {Object} - Mapped course object
  */
-export function mapCourseToModel(order) {
+export function mapCourseToModel(order: SquarespaceOrder): CourseModel {
   const item = order?.lineItems?.[0];
   const courseName = item?.productName;
 
@@ -56,12 +56,22 @@ export function mapCourseToModel(order) {
   }
 }
 
+export interface StudentRecordWithCourses {
+  customerEmail?: string;
+  courses: SquarespaceOrder[];
+  [key: string]: unknown;
+}
+
+export interface MappedStudentRecord extends Omit<StudentRecordWithCourses, "courses"> {
+  courses: CourseModel[];
+}
+
 /**
  * Maps all courses in a student record to their appropriate models
- * @param {Object} studentRecord - Student record containing a `courses` array of orders
- * @returns {Object} - Student record with mapped courses
  */
-export function mapStudentCourses(studentRecord) {
+export function mapStudentCourses(
+  studentRecord: StudentRecordWithCourses
+): StudentRecordWithCourses | MappedStudentRecord {
   if (!studentRecord || !Array.isArray(studentRecord.courses)) {
     return studentRecord;
   }

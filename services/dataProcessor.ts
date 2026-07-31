@@ -1,12 +1,14 @@
 import { logger } from "../utils/logger.js";
 import { mapCourseToModel } from "../models/courseMapper.js";
+import type { SquarespaceOrder } from "../types/squarespace.js";
+import type { CourseModel } from "../types/course.js";
 
 /**
  * Process and format Squarespace order data for Firebase storage
- * @param {Array} orders - Raw orders from Squarespace API
- * @returns {Array} - Processed course objects ready for Firebase
  */
-export async function processOrderData(orders) {
+export async function processOrderData(
+  orders: SquarespaceOrder[] | undefined | null
+): Promise<CourseModel[]> {
   try {
     logger.info("Processing order data");
 
@@ -15,7 +17,7 @@ export async function processOrderData(orders) {
       return [];
     }
 
-    const processedCourses = [];
+    const processedCourses: CourseModel[] = [];
 
     orders.forEach((order) => {
       try {
@@ -45,6 +47,6 @@ export async function processOrderData(orders) {
     return processedCourses;
   } catch (error) {
     logger.error("Error processing order data:", error);
-    throw new Error(`Failed to process order data: ${error.message}`);
+    throw new Error(`Failed to process order data: ${(error as Error).message}`);
   }
 }

@@ -1,12 +1,13 @@
 import admin from "firebase-admin";
 import dotenv from "dotenv";
 import { logger } from "../utils/logger.js";
+import type { CourseModel } from "../types/course.js";
 
 dotenv.config();
 
 let firebaseInitialized = false;
 
-function initializeFirebase() {
+function initializeFirebase(): void {
   if (firebaseInitialized) return;
 
   try {
@@ -34,25 +35,42 @@ function initializeFirebase() {
 }
 
 /**
- * Save processed Squarespace orders to Firestore
- * @param {Array} studentRecords - Already formatted and grouped student records
+ * Shared accessor so other services (e.g. scholarships.ts) reuse the same
+ * lazily-initialized Firebase app instead of each managing their own init.
  */
-export async function saveToFirestore(studentRecords) {
+export function getDb(): FirebaseFirestore.Firestore {
+  initializeFirebase();
+  return admin.firestore();
+}
+
+/**
+ * Course models are heterogeneous (Associates/PropheticGuidance/Generic/raw
+ * order), and this merge logic duck-types across all of them the same way
+ * the original JS did (courseId/orderId, customerEmail, studentInfo may or
+ * may not be present depending on which shape came through the mapper).
+ */
+type FirestoreCourseRecord = CourseModel & Record<string, any>;
+
+/**
+ * Save processed Squarespace orders to Firestore
+ * @param studentRecords - Already formatted and grouped student records
+ */
+export async function saveToFirestore(studentRecords: CourseModel[]): Promise<void> {
   try {
     if (!studentRecords || studentRecords.length === 0) {
       logger.info("No student records to save");
       return;
     }
 
-    initializeFirebase();
-    const db = admin.firestore();
+    const db = getDb();
     const collection = process.env.FIRESTORE_COLLECTION || "authorizedUsers";
 
     let successCount = 0;
     const batch = db.batch();
 
     // Process each student record
-    for (const student of studentRecords) {
+    for (const rawStudent of studentRecords) {
+      const student = rawStudent as FirestoreCourseRecord;
       try {
         // Get email from studentInfo or fall back to customerEmail
         const email = student.customerEmail;
@@ -69,12 +87,12 @@ export async function saveToFirestore(studentRecords) {
           .limit(1)
           .get();
 
-        let existingUser = null;
-        let docRef = null;
+        let existingUser: FirestoreCourseRecord | null = null;
+        let docRef: FirebaseFirestore.DocumentReference | null = null;
 
         if (!userQuery.empty) {
           // User exists, get their document
-          existingUser = userQuery.docs[0].data();
+          existingUser = userQuery.docs[0].data() as FirestoreCourseRecord;
           docRef = userQuery.docs[0].ref;
           logger.info(`Found existing user with email ${email}`);
         } else {
@@ -86,8 +104,8 @@ export async function saveToFirestore(studentRecords) {
         // If user exists, merge their existing courses with new ones
         if (existingUser && existingUser.courses) {
           // Create a map of existing courses by orderId for quick lookup
-          const existingCourseMap = {};
-          existingUser.courses.forEach((course) => {
+          const existingCourseMap: Record<string, boolean> = {};
+          existingUser.courses.forEach((course: FirestoreCourseRecord) => {
             existingCourseMap[course.courseId || course.orderId] = true;
           });
 
@@ -150,7 +168,7 @@ export async function saveToFirestore(studentRecords) {
   } catch (error) {
     logger.error("Error saving to Firestore:", error);
     throw new Error(
-      `Failed to save student records to Firestore: ${error.message}`
+      `Failed to save student records to Firestore: ${(error as Error).message}`
     );
   }
 }

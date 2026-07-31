@@ -9,11 +9,12 @@ async function main() {
     logger.info("Manual sync completed successfully");
     process.exit(0);
   } catch (error) {
+    const err = error as Error & { code?: string };
     logger.error("Manual sync failed:", {
-      message: error.message || "Unknown error",
-      stack: error.stack,
-      name: error.name,
-      code: error.code,
+      message: err.message || "Unknown error",
+      stack: err.stack,
+      name: err.name,
+      code: err.code,
     });
     process.exit(1);
   }

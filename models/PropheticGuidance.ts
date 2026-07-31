@@ -3,12 +3,13 @@
  * Converts Squarespace order data into a structured Prophetic Guidance course object.
  */
 
+import type { SquarespaceOrder, SquarespaceVariantOption } from "../types/squarespace.js";
+import type { PropheticGuidanceModel } from "../types/course.js";
+
 /**
  * Checks if a course is an Associates Program course
- * @param {string} courseName - Name of the course from Squarespace
- * @returns {boolean} - True if the course is an Associates Program course
  */
-export function isPropheticGuidance(courseName) {
+export function isPropheticGuidance(courseName: string | undefined | null): boolean {
   if (!courseName) return false;
 
   const name = courseName.toLowerCase();
@@ -21,33 +22,28 @@ export function isPropheticGuidance(courseName) {
 
 /**
  * Extracts module name from the course section
- * @param {string} section - Section name (e.g., "Module 1")
- * @returns {string} - Extracted module name
  */
-function extractModule(section) {
+function extractModule(section: string): string {
   return section.toLowerCase().includes("module") ? section.trim() : "General";
 }
 
 /**
  * Retrieves a variant option value by name
- * @param {Array} options - Array of variant options from the line item
- * @param {string} key - Option name to retrieve (e.g., "Plan", "Section")
- * @returns {string} - Option value
  */
-function getVariantOption(options, key) {
+function getVariantOption(options: SquarespaceVariantOption[], key: string): string {
   const option = options.find(
     (opt) => opt.optionName.toLowerCase() === key.toLowerCase()
   );
-  return option.value;
+  return option!.value;
 }
 
 /**
  * Builds the Prophetic Guidance course model from a Squarespace order
- * @param {Object} order - Full Squarespace order object
- * @param {string} password - The password to associate with the student
- * @returns {Object} - Formatted course model for Prophetic Guidance
  */
-export function createPropheticGuidanceModel(order, password) {
+export function createPropheticGuidanceModel(
+  order: SquarespaceOrder,
+  password?: string
+): PropheticGuidanceModel {
   const item = order.lineItems[0];
 
   const [firstName, lastName, phone, email, gender, age, studentType] =

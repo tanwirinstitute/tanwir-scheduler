@@ -3,12 +3,13 @@
  * Maps Squarespace order data to a structured format for the Associates Program course
  */
 
+import type { SquarespaceOrder, SquarespaceVariantOption } from "../types/squarespace.js";
+import type { AssociatesProgramModel } from "../types/course.js";
+
 /**
  * Checks if a course is an Associates Program course
- * @param {string} courseName - Name of the course from Squarespace
- * @returns {boolean} - True if the course is an Associates Program course
  */
-export function isAssociatesProgram(courseName) {
+export function isAssociatesProgram(courseName: string | undefined | null): boolean {
   if (!courseName) return false;
 
   const name = courseName.toLowerCase();
@@ -18,34 +19,28 @@ export function isAssociatesProgram(courseName) {
     name.includes("program")
   );
 }
+
 /**
  * Extract level information from the section (e.g., "Year 1" → "Year 1")
- * @param {string} section
- * @returns {string}
  */
-function extractLevel(section) {
+function extractLevel(section: string): string {
   return section.trim();
 }
 
 /**
  * Helper to get a variant option by name
- * @param {Array} options - variantOptions array
- * @param {string} key - option name to extract (e.g., "Plan", "Section")
- * @returns {string}
  */
-function getVariantOption(options, key) {
+function getVariantOption(options: SquarespaceVariantOption[], key: string): string {
   const found = options.find(
     (opt) => opt.optionName.toLowerCase() === key.toLowerCase()
   );
-  return found.value;
+  return found!.value;
 }
 
 /**
  * Creates a structured Associates Program course model from the order
- * @param {Object} order - Full Squarespace order object
- * @returns {Object} - Structured course + student model
  */
-export function createAssociatesProgramModel(order) {
+export function createAssociatesProgramModel(order: SquarespaceOrder): AssociatesProgramModel {
   const item = order.lineItems[0];
   const customizations = Object.fromEntries(
     item.customizations.map((c) => [c.label, c.value])
